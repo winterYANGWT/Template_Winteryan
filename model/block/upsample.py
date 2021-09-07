@@ -1,6 +1,5 @@
 import torch.nn as nn
-from torch.nn import init
-from .channel_changer import ChannelChanger
+from .convolution import ChannelChanger
 
 __all__ = ['DeconvUpSample', 'SubPixelUpSample']
 

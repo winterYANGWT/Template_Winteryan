@@ -1,7 +1,23 @@
 import torch
 import torch.nn as nn
 
-__all__ = ['Conv3x3']
+__all__ = ['ChannelChanger', 'Conv3x3', 'DilatedConv2d']
+
+
+class ChannelChanger(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.channel_changer = nn.Conv2d(in_channels,
+                                         out_channels,
+                                         kernel_size=1)
+        self.initialize()
+
+    def forward(self, input_tensor):
+        output_tensor = self.channel_changer(input_tensor)
+        return output_tensor
+
+    def initialize(self):
+        nn.init.kaiming_normal_(self.channel_changer.weight)
 
 
 class Conv3x3(nn.Module):
@@ -33,7 +49,7 @@ class Conv3x3(nn.Module):
         nn.init.kaiming_normal_(self.conv.weight)
 
 
-class Dialated_Conv2d(nn.Module):
+class DilatedConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, dilated_ratios,
                  stride, padding):
         super().__init__()
