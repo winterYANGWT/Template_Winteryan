@@ -20,21 +20,35 @@ class ChannelChanger(nn.Module):
         nn.init.kaiming_normal_(self.channel_changer.weight)
 
 
-class Conv3x3(nn.Module):
+class Conv(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
+                 kernel_size,
                  stride=1,
+                 padding=0,
                  dilation=1,
                  groups=1,
                  bias=True,
-                 padding_mode='zeros'):
+                 padding_mode='zeros',
+                 keep_spatial_size=True):
         super().__init__()
+
+        if kernel_size % 2 != 1:
+            msg = 'kernel_size should be odd, your kernel_size({}) is not supported.'.format(
+                kernel_size)
+            raise ValueError(msg)
+
+        if keep_spatial_size == True:
+            padding_size = kernel_size // 2
+        else:
+            padding_size = padding
+
         self.conv = nn.Conv2d(in_channels=in_channels,
                               out_channels=out_channels,
-                              kernel_size=3,
+                              kernel_size=kernel_size,
                               stride=stride,
-                              padding=1,
+                              padding=padding_size,
                               dilation=dilation,
                               groups=groups,
                               bias=bias,
@@ -47,6 +61,106 @@ class Conv3x3(nn.Module):
 
     def initialize(self):
         nn.init.kaiming_normal_(self.conv.weight)
+
+
+class Conv1x1(Conv):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 stride=1,
+                 dilation=1,
+                 groups=1,
+                 bias=True,
+                 padding_mode='zeros'):
+        super().__init__(in_channels=in_channels,
+                         out_channels=out_channels,
+                         kernel_size=1,
+                         stride=stride,
+                         dilation=dilation,
+                         groups=groups,
+                         bias=bias,
+                         padding_mode=padding_mode,
+                         keep_spatial_size=True)
+
+
+class Conv3x3(Conv):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 stride=1,
+                 dilation=1,
+                 groups=1,
+                 bias=True,
+                 padding_mode='zeros'):
+        super().__init__(in_channels=in_channels,
+                         out_channels=out_channels,
+                         kernel_size=3,
+                         stride=stride,
+                         dilation=dilation,
+                         groups=groups,
+                         bias=bias,
+                         padding_mode=padding_mode,
+                         keep_spatial_size=True)
+
+
+class Conv5x5(Conv):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 stride=1,
+                 dilation=1,
+                 groups=1,
+                 bias=True,
+                 padding_mode='zeros'):
+        super().__init__(in_channels=in_channels,
+                         out_channels=out_channels,
+                         kernel_size=5,
+                         stride=stride,
+                         dilation=dilation,
+                         groups=groups,
+                         bias=bias,
+                         padding_mode=padding_mode,
+                         keep_spatial_size=True)
+
+
+class Conv7x7(Conv):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 stride=1,
+                 dilation=1,
+                 groups=1,
+                 bias=True,
+                 padding_mode='zeros'):
+        super().__init__(in_channels=in_channels,
+                         out_channels=out_channels,
+                         kernel_size=7,
+                         stride=stride,
+                         dilation=dilation,
+                         groups=groups,
+                         bias=bias,
+                         padding_mode=padding_mode,
+                         keep_spatial_size=True)
+
+
+class Conv9x9(Conv):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 stride=1,
+                 dilation=1,
+                 groups=1,
+                 bias=True,
+                 padding_mode='zeros'):
+        super().__init__(in_channels=in_channels,
+                         out_channels=out_channels,
+                         kernel_size=9,
+                         stride=stride,
+                         dilation=dilation,
+                         groups=groups,
+                         bias=bias,
+                         padding_mode=padding_mode,
+                         keep_spatial_size=True)
 
 
 class DilatedConv2d(nn.Module):
