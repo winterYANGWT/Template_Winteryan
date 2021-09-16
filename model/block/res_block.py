@@ -1,5 +1,5 @@
 import torch.nn as nn
-from .convolution import DilatedConv2d, Conv3x3, ChannelChanger
+from .convolution import DilatedConv2d, Conv1x1, Conv3x3, ChannelChanger
 
 __all__ = ['ResBasicBlock', 'ResBottleneckBlock']
 
@@ -13,10 +13,16 @@ class ResBasicBlock(nn.Module):
                  dilation=None,
                  norm_layer=None):
         super().__init__()
-        self.expansion = 1
 
         if norm_layer == None:
             norm_layer = nn.BatchNorm2d
+
+        self.downsample = None
+
+        if stride != 1 or in_channels != out_channels:
+            self.downsample = nn.Sequential(
+                Conv1x1(in_channels, out_channels, stride=stride),
+                norm_layer(out_channels))
 
         if dilation == True:
             raise NotImplementedError(
@@ -30,7 +36,6 @@ class ResBasicBlock(nn.Module):
                              out_channels=out_channels)
         self.bn2 = norm_layer(out_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
 
     def forward(self, input_tensor):
         identity = input_tensor
@@ -58,6 +63,13 @@ class ResBottleneckBlock(nn.Module):
 
         if norm_layer != None:
             self.norm_layer = nn.BatchNorm2d
+
+        self.downsample = None
+
+        if stride != 1 or in_channels != out_channels:
+            self.downsample = nn.Sequential(
+                Conv1x1(in_channels, out_channels, stride=stride),
+                norm_layer(out_channels))
 
         self.conv1 = ChannelChanger(in_channels=in_channels,
                                     out_channels=mid_channels)
