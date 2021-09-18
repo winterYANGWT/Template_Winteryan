@@ -1,7 +1,7 @@
 from typing import Callable, List
 import numpy as np
 
-__all__ = ['Iterator', 'Selector', 'Switch']
+__all__ = ['Iterator', 'Selector', 'Switch', 'Mux']
 
 
 class Iterator(object):
@@ -50,4 +50,14 @@ class Switch(object):
     def __call__(self, input_data):
         output_data = self.transform(
             input_data) if np.random.rand() < self.p else input_data
+        return output_data
+
+
+class Mux(object):
+    def __init__(self, transform: Callable) -> None:
+        super().__init__()
+        self.transform = transform
+
+    def __call__(self, *input_data):
+        output_data = [self.transform(data) for data in input_data]
         return output_data
