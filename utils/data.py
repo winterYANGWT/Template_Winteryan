@@ -1,6 +1,6 @@
 import torch.utils.data as data
 
-__all__ = ['generate_dataloaders']
+__all__ = ['generate_data_loaders']
 
 
 def generate_data_loaders(datasets, config):
@@ -53,10 +53,11 @@ def generate_data_loaders(datasets, config):
     return data_loaders
 
 
-def _generate_dataloader(dataset, config):
+def _generate_dataloader(dataset, cfg):
     data_loader = data.DataLoader(dataset=dataset,
-                                  batch_size=config.BATCH_SIZE,
+                                  batch_size=cfg.BATCH_SIZE,
                                   shuffle=dataset.shuffle,
-                                  num_workers=config.WORKER,
+                                  num_workers=cfg.WORKER,
+                                  prefetch_factor=cfg.PREFETCH_FACTOR,
                                   collate_fn=dataset.collate_fn)
     return data_loader
