@@ -1,5 +1,4 @@
-from typing import Dict
-import torch
+from typing import Any, Dict
 from abc import ABC, abstractclassmethod
 
 
@@ -8,7 +7,6 @@ class AbstractTransform(ABC):
         super().__init__()
 
     @abstractclassmethod
-    def __call__(self, input_tensor_dict: Dict[str,
-                                               torch.Tensor]) -> torch.Tensor:
+    def __call__(self, input_dict: Dict[str, Any]) -> Dict[str, Any]:
         msg = '__call__ should be implemented by subclass.'
         raise NotImplementedError(msg)
