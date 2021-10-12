@@ -1,8 +1,8 @@
 import torch.nn as nn
 
 __all__ = [
-    'PerPatchFC', 'TokenMixingMLP', 'ChannelMixingMLP', 'MixerLayer',
-    'TransposePerPatchFC'
+    'PerPatchFC', 'ResidualLayerNorm', 'TokenMixingMLP', 'ChannelMixingMLP',
+    'MixerLayer', 'TransposePerPatchFC'
 ]
 
 
@@ -52,31 +52,39 @@ class TransposePerPatchFC(nn.Module):
         return output_tensors
 
 
+class ResidualLayerNorm(nn.Module):
+    def __init__(self, num_channels, model):
+        super().__init__()
+        self.model = model
+        self.norm = nn.LayerNorm(num_channels)
+
+    def forward(self, input_tensors):
+        return self.model(self.norm(input_tensors)) + input_tensors
+
+
 class TokenMixingMLP(nn.Module):
     def __init__(self, num_patches, expansion_factor=4, dropout=0.0):
         super().__init__()
-        self.norm = nn.LayerNorm()
-        self.fc1 = nn.Linear(num_patches, num_patches * expansion_factor)
-        self.fc2 = nn.Linear(num_patches * expansion_factor, num_patches)
+        self.fc1 = nn.Conv1d(num_patches,
+                             num_patches * expansion_factor,
+                             kernel_size=1)
+        self.fc2 = nn.Conv1d(num_patches * expansion_factor,
+                             num_patches,
+                             kernel_size=1)
         self.activation = nn.GELU()
         self.dropout1 = nn.Dropout(p=dropout)
         self.dropout2 = nn.Dropout(p=dropout)
 
     def forward(self, input_tensors):
-        identity = input_tensors
-        input_tensors_T = self.norm(input_tensors).permute(0, 2, 1)
-        input_tensors_T = self.dropout1(
-            self.activation(self.fc1(input_tensors_T)))
-        input_tensors_T = self.dropout2(self.fc2(input_tensors_T))
-        input_tensors = input_tensors_T.permute(0, 2, 1).contiguous()
-        output_tensors = input_tensors + identity
+        output_tensors = self.dropout1(self.activation(
+            self.fc1(input_tensors)))
+        output_tensors = self.dropout2(self.fc2(output_tensors))
         return output_tensors
 
 
 class ChannelMixingMLP(nn.Module):
     def __init__(self, num_channels, expansion_factor=4, dropout=0.0):
         super().__init__()
-        self.norm = nn.LayerNorm()
         self.fc1 = nn.Linear(num_channels, num_channels * expansion_factor)
         self.fc2 = nn.Linear(num_channels * expansion_factor, num_channels)
         self.activation = nn.GELU()
@@ -84,18 +92,29 @@ class ChannelMixingMLP(nn.Module):
         self.dropout2 = nn.Dropout(p=dropout)
 
     def forward(self, input_tensors):
-        identity = input_tensors
-        input_tensors = self.dropout1(self.activation(self.fc1(input_tensors)))
-        input_tensors = self.dropout2(self.fc2(input_tensors))
-        output_tensors = input_tensors + identity
+        output_tensors = self.dropout1(self.activation(
+            self.fc1(input_tensors)))
+        output_tensors = self.dropout2(self.fc2(output_tensors))
         return output_tensors
 
 
 class MixerLayer(nn.Module):
-    def __init__(self, num_patches, num_channels):
+    def __init__(self,
+                 num_patches,
+                 num_channels,
+                 expansion_factor=4,
+                 dropout=0.0):
         super().__init__()
-        self.token_mixing_layer = TokenMixingMLP(num_patches)
-        self.channel_mixing_layer = ChannelMixingMLP(num_channels)
+        self.token_mixing_layer = ResidualLayerNorm(
+            num_channels=num_channels,
+            model=TokenMixingMLP(num_patches=num_patches,
+                                 expansion_factor=expansion_factor,
+                                 dropout=dropout))
+        self.channel_mixing_layer = ResidualLayerNorm(
+            num_channels=num_channels,
+            model=ChannelMixingMLP(num_channels=num_channels,
+                                   expansion_factor=expansion_factor,
+                                   dropout=dropout))
 
     def forward(self, input_tensors):
         output_tensors = self.token_mixing_layer(input_tensors)
