@@ -13,6 +13,7 @@ class AbstractDataset(data.Dataset):
         self._shuffle = shuffle
         self.transforms = transforms
         self._keys = list(self.data_frame.keys())
+        self.collate_fn = None
 
     def __len__(self):
         return len(self.data_frame)
@@ -32,10 +33,6 @@ class AbstractDataset(data.Dataset):
     @property
     def keys(self):
         return self._keys
-
-    @property
-    def collate_fn(self):
-        return None
 
     def __getitem__(self, index):
         if torch.is_tensor(index):
