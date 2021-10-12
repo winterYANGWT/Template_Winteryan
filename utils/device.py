@@ -36,7 +36,7 @@ def get_device(data: T) -> torch.device:
 def to_device(data: Union[Sequence[T], Dict[str, T], T],
               device: torch.device) -> Union[Sequence[T], Dict[str, T], T]:
     '''
-    move data to specific device.
+    Move data to specific device.
     T: torch.Tensor|torch.nn.Moudle
 
     Args:
