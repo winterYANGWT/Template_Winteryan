@@ -1,1 +1,1 @@
-from .abstract_config import *
+__all__ = []
