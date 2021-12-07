@@ -11,18 +11,17 @@ class ResBasicBlock(nn.Module):
                  stride=1,
                  downsample=None,
                  dilation=None,
-                 norm_layer=None):
+                 norm=None):
         super().__init__()
-
-        if norm_layer == None:
-            norm_layer = nn.BatchNorm2d
-
-        self.downsample = None
+        norm = norm if norm != None else nn.BatchNorm2d
+        self.norm1 = norm(out_channels)
+        self.norm2 = norm(out_channels)
+        self.downsample = downsample
 
         if stride != 1 or in_channels != out_channels:
             self.downsample = nn.Sequential(
                 Conv1x1(in_channels, out_channels, stride=stride),
-                norm_layer(out_channels))
+                norm(out_channels))
 
         if dilation == True:
             raise NotImplementedError(
@@ -31,16 +30,14 @@ class ResBasicBlock(nn.Module):
         self.conv1 = Conv3x3(in_channels=in_channels,
                              out_channels=out_channels,
                              stride=stride)
-        self.bn1 = norm_layer(out_channels)
         self.conv2 = Conv3x3(in_channels=out_channels,
                              out_channels=out_channels)
-        self.bn2 = norm_layer(out_channels)
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, input_tensor):
         identity = input_tensor
-        output_tensor = self.relu(self.bn1(self.conv1(input_tensor)))
-        output_tensor = self.bn2(self.conv2(output_tensor))
+        output_tensor = self.relu(self.norm1(self.conv1(input_tensor)))
+        output_tensor = self.norm2(self.conv2(output_tensor))
 
         if self.downsample != None:
             identity = self.downsample(identity)
@@ -58,22 +55,21 @@ class ResBottleneckBlock(nn.Module):
                  stride=1,
                  downsample=None,
                  dilation=None,
-                 norm_layer=None):
+                 norm=None):
         super().__init__()
-
-        if norm_layer != None:
-            self.norm_layer = nn.BatchNorm2d
-
-        self.downsample = None
+        norm = norm if norm != None else nn.BatchNorm2d
+        self.norm1 = norm(mid_channels)
+        self.norm2 = norm(mid_channels)
+        self.norm3 = norm(out_channels)
+        self.downsample = downsample
 
         if stride != 1 or in_channels != out_channels:
             self.downsample = nn.Sequential(
                 Conv1x1(in_channels, out_channels, stride=stride),
-                norm_layer(out_channels))
+                norm(out_channels))
 
         self.conv1 = ChannelChanger(in_channels=in_channels,
                                     out_channels=mid_channels)
-        self.bn1 = self.norm_layer(mid_channels)
 
         if dilation != None:
             self.conv2 = DilatedConv2d(mid_channels,
@@ -85,18 +81,14 @@ class ResBottleneckBlock(nn.Module):
         else:
             self.conv2 = Conv3x3(mid_channels, mid_channels)
 
-        self.bn2 = self.norm_layer(mid_channels)
-
         self.conv3 = ChannelChanger(mid_channels, out_channels=out_channels)
-        self.bn3 = self.norm_layer(out_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
 
     def forward(self, input_tensor):
         identity = input_tensor
-        out_tensor = self.relu(self.bn1(self.conv1(input_tensor)))
-        out_tensor = self.relu(self.bn2(self.conv2(out_tensor)))
-        out_tensor = self.bn3(self.conv3(out_tensor))
+        out_tensor = self.relu(self.norm1(self.conv1(input_tensor)))
+        out_tensor = self.relu(self.norm2(self.conv2(out_tensor)))
+        out_tensor = self.norm3(self.conv3(out_tensor))
 
         if self.downsample != None:
             identity = self.downsample(identity)

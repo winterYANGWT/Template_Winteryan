@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 
-__all__ = ['ChannelChanger', 'Conv3x3', 'DilatedConv2d']
+__all__ = [
+    'ChannelChanger', 'Conv', 'Conv1x1', 'Conv3x3', 'Conv5x5', 'Conv7x7',
+    'Conv9x9', 'DilatedConv2d'
+]
 
 
 class ChannelChanger(nn.Module):
