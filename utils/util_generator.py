@@ -1,14 +1,12 @@
-from numpy import mod
 import torch
-from torch._C import _graph_pool_handle
 import torch.utils.data as data
 import torch.nn as nn
-import torch.optim as optim
+from .util_io import load_model
 from .util_device import to_device
 
 __all__ = [
     'generate_dataset', 'generate_data_loader', 'generate_data_loaders',
-    'generate_model', 'generate_optimizers', 'generate_optimizer'
+    'generate_model', 'generate_optimizer'
 ]
 
 
@@ -17,6 +15,7 @@ def generate_dataset(dataset,
                      batch_size=1,
                      num_workers=1,
                      prefetch_factor=2,
+                     pin_memory=False,
                      collate_fn=None):
     '''
     Generate a dataset that has some necessary attributes.
@@ -56,40 +55,47 @@ def generate_dataset(dataset,
             type(collate_fn))
         raise TypeError(msg)
 
+    if not isinstance(pin_memory, bool):
+        msg = 'pin_memory should be Type bool, but got {}.'.format(
+            type(shuffle))
+        raise TypeError(msg)
+
     dataset.shuffle = shuffle
     dataset.batch_size = batch_size
     dataset.num_workers = num_workers
     dataset.prefetch_factor = prefetch_factor
     dataset.collate_fn = collate_fn
+    dataset.pin_memory = pin_memory
     return dataset
 
 
 def generate_model(model,
-                   learning_rate=0,
-                   optimizer=None,
+                   parameters_path='',
                    device=torch.device('cpu'),
                    data_parallel=False):
     '''
     Generate a model that has some necessary attributes.
 
     Args:
-        model(torch.nn.Module): A model can process data.
-        learning_rate(float): To indicate the step size of updating parameters in each backward propagation.
-        optimizer(str): The optimizer used to update parameters.
+        model(torch.nn.Module): A PyTorch model.
+        parameters_path(str): The path which the model's parameters are stored in.
+        device(torch.device): The device in which the model is in. it could be cuda device or cpu device.
+        data_parallel(bool): if data_parallel is True, the model will be loaded into multi-gpus and process data in parallel.
 
     Returns:
         (torch.nn.Module): A model contains some necessary attributes.
     '''
+    if parameters_path != '':
+        model = load_model(model, parameters_path)
+
     if data_parallel == True:
         model = nn.DataParallel(module=model)
 
     model = to_device(model, device)
-    model.learning_rate = learning_rate
-    model.optimizer = optimizer
     return model
 
 
-def generate_optimizers(models):
+def generate_optimizer(model, optimizer, learning_rate):
     '''
     Create optimizers for models.
 
@@ -97,50 +103,15 @@ def generate_optimizers(models):
     Type `O`: torch.optim.Optimizer
 
     Args:
-        models(Union[M, Dict[str, M], Sequence[M]]): A container contains models or a model, if model in models does not have necessary attributes: learning_rate, optimizer. Use generate_model to create proper model.
+        model(torch.nn.Module): A model need to update parameters druing training.
+        optimizer(torch.optim.Optimizer): A optimizer class to use its instance to update model's parameters.
+        learning_rate(float): The step size each time the model's parameters are updated.
 
     Returns:
         (Union[O, Dict[str, O], Sequence[O]]): A container contains optimizers or a optimizer.
     '''
-    if isinstance(models, (tuple, list)):
-        optimizers = [generate_optimizer(model) for model in models]
-    elif isinstance(models, dict):
-        optimizers = {
-            name: generate_optimizer(model)
-            for name, model in models.items()
-        }
-    elif isinstance(models, torch.nn.Module):
-        optimizers = generate_optimizer(models)
-
-    return optimizers
-
-
-def generate_optimizer(model):
-    '''
-    Create optimizers for models.
-
-    Type `M`: torch.nn.Module
-    Type `O`: torch.optim.Optimizer
-
-    Args:
-        models(Union[M, Dict[str, M], Sequence[M]]): A model, if model in models does not have necessary attributes: learning_rate, optimizer. Use generate_model to create proper model.
-
-    Returns:
-        (Union[O, Dict[str, O], Sequence[O]]): A optimizer to update the parameters of model.
-    '''
-    if model.optimizer == 'Adam':
-        optim_class = optim.Adam
-    elif model.optimizer == 'SGD':
-        optim_class = optim.SGD
-    elif model.optimizer == None:
-        return None
-    else:
-        msg = 'model\'s optimizer should be Adam, SGD or NoneType. but got {}.'.format(
-            model.optimizer)
-        raise ValueError(msg)
-
-    optimizer = optim_class(model.parameters(), lr=model.learning_rate)
-    return optimizer
+    model_optimizer = optimizer(model.parameters(), lr=learning_rate)
+    return model_optimizer
 
 
 def generate_data_loaders(datasets):
@@ -192,5 +163,6 @@ def generate_data_loader(dataset):
                                   shuffle=dataset.shuffle,
                                   num_workers=dataset.num_workers,
                                   prefetch_factor=dataset.prefetch_factor,
-                                  collate_fn=dataset.collate_fn)
+                                  collate_fn=dataset.collate_fn,
+                                  pin_memory=dataset.pin_memory)
     return data_loader

@@ -44,8 +44,26 @@ def to_device(data, device):
         (Union[Sequence[T], Dict[str, T], T]): Structure is the same as data. but it is moved to specific device.
     '''
     if isinstance(data, (list, tuple)):
-        return [d.to(device) for d in data]
+        l = []
+
+        for d in data:
+            if isinstance(d, (torch.Tensor, torch.nn.Module)):
+                l.append(d.to(device))
+            else:
+                l.append(d)
+
+        return l
     elif isinstance(data, dict):
-        return {key: value.to(device) for key, value in data.items()}
-    else:
+        d = {}
+
+        for key, value in data.items():
+            if isinstance(value, (torch.Tensor, torch.nn.Module)):
+                d[key] = value.to(device)
+            else:
+                d[key] = value
+
+        return d
+    elif isinstance(data, (torch.Tensor, torch.nn.Module)):
         return data.to(device)
+    else:
+        return data
