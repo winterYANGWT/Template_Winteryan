@@ -8,6 +8,7 @@ from .attention import *
 from .embedding import *
 from .activation import *
 from .ema import *
+from .normalization import *
 
 __all__ = []
 __all__.extend(upsample.__all__)
@@ -19,3 +20,4 @@ __all__.extend(attention.__all__)
 __all__.extend(embedding.__all__)
 __all__.extend(activation.__all__)
 __all__.extend(ema.__all__)
+__all__.extend(normalization.__all__)

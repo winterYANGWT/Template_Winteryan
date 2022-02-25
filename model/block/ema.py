@@ -9,7 +9,8 @@ class EMA(object):
         super().__init__()
         self.beta = beta
 
-    def update_model(self, old_model: torch.Module, new_model: torch.Module):
+    def update_model(self, old_model: torch.nn.Module,
+                     new_model: torch.nn.Module):
         for old_params, new_params in zip(old_model.parameters(),
                                           new_model.parameters()):
             old_weight, new_weight = old_params.data, new_params.data

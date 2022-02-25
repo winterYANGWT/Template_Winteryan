@@ -24,7 +24,7 @@ class GuassianFourierEmbedding(nn.Module):
     def __init__(self, embedding_dim, scale=30) -> None:
         super().__init__()
         half_dim = embedding_dim // 2
-        w = torch.rand(half_dim) * scale
+        w = torch.randn(half_dim) * scale
         self.register_buffer('w', w)
 
     def __init__(self, t):
