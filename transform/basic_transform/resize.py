@@ -1,24 +1,148 @@
 import torchvision.transforms.functional as F
+import torchvision as tv
 from PIL import Image
 import torch
 import math
 import utils
 
-__all__ = ['ScaleResize']
+__all__ = ['MinimumResize', 'MaximumResize', 'FixedResize']
 
 
-class ScaleResize(object):
-    def __init__(self,
-                 fixed_size,
-                 fill_value=0,
-                 interpolation=Image.BILINEAR) -> None:
+class MinimumResize(object):
+    def __init__(
+            self,
+            minimum_size,
+            interpolation=tv.transforms.InterpolationMode.BILINEAR) -> None:
         '''
-        Resize Image and keep the aspect ratio.
+        Resize image and keep the aspect ratio. Make sure that the shortest edge of image is above the minimum_size.
+
+        Args:
+            minimum_size(Tuple[int]): The minimum size of resized image and its height and width should be above the minimum size.
+            interpolation(torchvision.transforms.InterpolationMode): Desired interpolation method defined in PIL.Image.
+        '''
+        super().__init__()
+
+        if not isinstance(minimum_size, int):
+            msg = 'minimum_size should be int, but got {}.'.format(
+                minimum_size)
+            raise ValueError(msg)
+        else:
+            self.minimum_size = minimum_size
+
+        self.interpolation = interpolation
+
+    def __call__(self, image):
+        '''
+        Args:
+            image(Union[PIL.Image.Image, torch.Tensor]): Image to resize and its aspect ratio will be unchanged.
+        Returns:
+            (Union[PIL.Image.Image, torch.Tensor]): Resized image.
+        '''
+        if isinstance(image, Image.Image):
+            w = image.width
+            h = image.height
+        elif isinstance(image, torch.Tensor):
+            c, h, w = image.size()
+        else:
+            msg = 'image shoude be PIL.Image or torch.Tensor, but got {}.'.format(
+                type(image))
+            raise ValueError(msg)
+
+        h_scale = h / self.minimum_size
+        w_scale = w / self.minimum_size
+
+        if h_scale >= 1 and w_scale >= 1:
+            return image
+        else:
+            if h_scale > w_scale:
+                new_w = self.minimum_size
+                new_h = math.floor(1 / w_scale * h)
+            elif h_scale < w_scale:
+                new_h = self.minimum_size
+                new_w = math.floor(1 / h_scale * w)
+            else:
+                new_h = new_w = self.minimum_size
+
+            resized_image = F.resize(image,
+                                     size=(new_h, new_w),
+                                     interpolation=self.interpolation)
+            return resized_image
+
+
+class MaximumResize(object):
+    def __init__(
+            self,
+            maximum_size,
+            interpolation=tv.transforms.InterpolationMode.BILINEAR) -> None:
+        '''
+        Resize image and keep the aspect ratio. Make sure that the longest edge of image is below the maximum_size.
+
+        Args:
+            maximum_size(Tuple[int]): The maximum size of resized image and its height and width should be below the maximum size.
+            interpolation(torchvision.transforms.InterpolationMode): Desired interpolation method defined in PIL.Image.
+        '''
+        super().__init__()
+
+        if not isinstance(maximum_size, int):
+            msg = 'maximum_size should be int, but got {}.'.format(
+                maximum_size)
+            raise ValueError(msg)
+        else:
+            self.maximum_size = maximum_size
+
+        self.interpolation = interpolation
+
+    def __call__(self, image):
+        '''
+        Args:
+            image(Union[PIL.Image.Image, torch.Tensor]): Image to resize and its aspect ratio will be unchanged.
+        Returns:
+            (Union[PIL.Image.Image, torch.Tensor]): Resized image.
+        '''
+        if isinstance(image, Image.Image):
+            w = image.width
+            h = image.height
+        elif isinstance(image, torch.Tensor):
+            c, h, w = image.size()
+        else:
+            msg = 'image shoude be PIL.Image or torch.Tensor, but got {}.'.format(
+                type(image))
+            raise ValueError(msg)
+
+        h_scale = h / self.maximum_size
+        w_scale = w / self.maximum_size
+
+        if h_scale <= 1 and w_scale <= 1:
+            return image
+        else:
+            if h_scale > w_scale:
+                new_h = self.maximum_size
+                new_w = math.floor(1 / h_scale * w)
+            elif h_scale < w_scale:
+                new_w = self.maximum_size
+                new_h = math.floor(1 / w_scale * h)
+            else:
+                new_h = new_w = self.maximum_size
+
+            resized_image = F.resize(image,
+                                     size=(new_h, new_w),
+                                     interpolation=self.interpolation)
+            return resized_image
+
+
+class FixedResize(object):
+    def __init__(
+            self,
+            fixed_size,
+            fill_value=0,
+            interpolation=tv.transforms.InterpolationMode.BILINEAR) -> None:
+        '''
+        Resize Image and keep the aspect ratio. The blank area of resize image will be filled with fill_value.
 
         Args:
             fixed_size(Tuple[int]): The target size of resized image and its shape should be (h,w).
             fill_value(Union[float, Tuple[float]]): The value filled in blank area.
-            interpolation(PIL.Image.InterpolationMode): Desired interpolation method defined in PIL.Image.
+            interpolation(torchvision.transforms.InterpolationMode): Desired interpolation method defined in PIL.Image.
         '''
         super().__init__()
 
