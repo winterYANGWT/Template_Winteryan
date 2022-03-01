@@ -1,12 +1,14 @@
+import os.path as path
 import torch
 import torch.utils.data as data
 import torch.nn as nn
 from .util_io import load_model
 from .util_device import to_device
+from typing import Dict
 
 __all__ = [
     'generate_dataset', 'generate_data_loader', 'generate_data_loaders',
-    'generate_model', 'generate_optimizer'
+    'generate_models', 'generate_optimizer'
 ]
 
 
@@ -69,30 +71,48 @@ def generate_dataset(dataset,
     return dataset
 
 
-def generate_model(model,
-                   parameters_path='',
-                   device=torch.device('cpu'),
-                   data_parallel=False):
+def generate_models(models: Dict[str, nn.Module],
+                    is_load: bool = False,
+                    device: torch.device = torch.device('cpu'),
+                    data_parallel: bool = False,
+                    *,
+                    model_dir: str = '') -> Dict[str, torch.nn.Module]:
     '''
-    Generate a model that has some necessary attributes.
+    Preprocess models in dict.
 
     Args:
-        model(torch.nn.Module): A PyTorch model.
-        parameters_path(str): The path which the model's parameters are stored in.
-        device(torch.device): The device in which the model is in. it could be cuda device or cpu device.
-        data_parallel(bool): if data_parallel is True, the model will be loaded into multi-gpus and process data in parallel.
+        models: A dict of PyTorch models.
+        is_load: If True, will load pretrained parameters to models.
+        device: The device in which the model is in. It could be cuda device or cpu device.
+        data_parallel: If True, the model will be loaded into multi-gpus and process data in parallel.
+        model_dir: The dir which the model's parameters are stored in.
 
     Returns:
-        (torch.nn.Module): A model contains some necessary attributes.
+        A dict contrains preprocessed models.
     '''
-    if parameters_path != '':
-        model = load_model(model, parameters_path)
+    def generate_model(model, parameters_path, device, data_parallel):
+        if parameters_path != '':
+            model = load_model(model, parameters_path)
 
-    if data_parallel == True:
-        model = nn.DataParallel(module=model)
+        if data_parallel == True:
+            model = nn.DataParallel(module=model)
 
-    model = to_device(model, device)
-    return model
+        model = to_device(model, device)
+        return model
+
+    if is_load == True:
+        assert model_dir != '', 'model_dir shouldn\'t be \'\' if is_load is True.'
+
+    for key in models.keys():
+        if is_load == True:
+            parameters_path = path.join(model_dir, models[key].name)
+        else:
+            parameters_path = ''
+
+        models[key] = generate_model(models[key], parameters_path, device,
+                                     data_parallel)
+
+    return models
 
 
 def generate_optimizer(model, optimizer, learning_rate):
