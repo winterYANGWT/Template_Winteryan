@@ -22,22 +22,23 @@ def load_model(model, load_path):
     return model
 
 
-def save_model(model, save_path):
+def save_model(model, save_dir):
     '''
-    Save model's weight on save_path.
+    Save model's weight in save_dir.
 
     Args:
         model(torch.nn.Module)
-        save_path(str): The path of saved model weight file.
+        save_dir(str): The directory which model's weight file saved.
     '''
-    save_dir = os.path.dirname(save_path)
     os.makedirs(save_dir, exist_ok=True)
 
     if isinstance(model, torch.nn.Module):
         if isinstance(model, torch.nn.DataParallel):
-            torch.save(model.module.state_dict(), save_path)
+            torch.save(model.module.state_dict(),
+                       os.path.join(save_dir, model.module.name + '.pth'))
         else:
-            torch.save(model.state_dict(), save_path)
+            torch.save(model.state_dict(),
+                       os.path.join(save_dir, model.name + '.pth'))
     else:
         msg = 'model should be torch.nn.Module, but got {}'.format(type(model))
         raise TypeError(msg)

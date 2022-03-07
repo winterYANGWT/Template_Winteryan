@@ -94,7 +94,7 @@ def generate_models(models: Dict[str, nn.Module],
         if parameters_path != '':
             model = load_model(model, parameters_path)
 
-        if data_parallel == True:
+        if data_parallel == True and device != torch.device('cpu'):
             model = nn.DataParallel(module=model)
 
         model = to_device(model, device)
