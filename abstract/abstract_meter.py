@@ -6,33 +6,30 @@ class AbstractMeter(ABC):
         super().__init__()
         self.reset()
 
-    @abstractclassmethod
     def reset(self):
         msg = 'reset should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @abstractclassmethod
     def update(self):
         msg = 'update should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    def update_value(self):
-        if self._value.keys() != self.sum.keys():
-            msg = 'self._value and self.sum should have same keys.'
-            raise ValueError(msg)
+    def compute_value(self):
+        value = {}
 
-        keys = self._value.keys()
+        for key in self.sum.keys():
+            if self.num_samples != 0:
+                value[key] = self.sum[key] / self.num_samples
+            else:
+                value[key] = 0
 
-        for key in keys:
-            self._value[key] = self.sum[key] / self.count
+        return value
 
     @property
     def value(self) -> dict:
-        return self._value
+        return self.compute_value()
 
     def __str__(self):
-        items = [
-            ': '.join([name, '{:.6}'.format(value)])
-            for (name, value) in self._value.items()
-        ]
+        value_dict = self.compute_value()
+        items = [f'{name}: {value:.6}' for (name, value) in value_dict.items()]
         return ', '.join(items)

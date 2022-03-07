@@ -1,4 +1,9 @@
 from abc import ABC
+import utils
+from tqdm import tqdm
+import torch
+from torch.cuda.amp import autocast, GradScaler
+import os.path as path
 
 
 class TrainStep(ABC):
@@ -11,31 +16,45 @@ class TrainStep(ABC):
         self.load_criterions()
         self.load_meters()
 
-    @classmethod
     def load_config(self):
         '''
         Load config from config package.
+
+        Example:
+            >>> self.cfg = UserDefinedConfig()
         '''
         msg = 'load_config should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
     def load_datasets(self):
         '''
         Load dataset(s) from dataset package.
+
+        Example:
+            >>> datasets = {}
+            >>> datasets['train'] = A()
+            >>> datasets['val'] = B()
+            >>> self.data_loaders = utils.generate_data_loaders(datasets)
         '''
         msg = 'load_datasets should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
     def load_models(self):
         '''
         Load model(s) from model package.
+
+        Example:
+            >>> self.models = {}
+            >>> self.models['a'] = A()
+            >>> self.models['b'] = B()
+            >>> self.models = utils.generate_models(self.models,
+            >>>                                     self.cfg.IS_LOAD,
+            >>>                                     self.cfg.DEVICE,
+            >>>                                     self.cfg.DATA_PARALLEL)
         '''
         msg = 'load_models should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
     def load_optimizers(self):
         '''
         Load optimizer(s) for model(s).
@@ -43,7 +62,6 @@ class TrainStep(ABC):
         msg = 'load_optimizers should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
     def load_criterions(self):
         '''
         Load criterion(s) from loss package.
@@ -51,7 +69,6 @@ class TrainStep(ABC):
         msg = 'load_criterions should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
     def load_meters(self):
         '''
         Load meter(s) from meter package.
@@ -59,7 +76,6 @@ class TrainStep(ABC):
         msg = 'load_meters should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
     def forward(self, input_data):
         '''
         Forward inference.
@@ -67,23 +83,47 @@ class TrainStep(ABC):
         msg = 'forward should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
-    def backward(self, input_data, output_data):
+    def compute_loss(self, input_data, output_data):
         '''
-        Backward propagation.
+        Compute loss.
+        '''
+        msg = 'compute_loss should be implemented by subclass.'
+        raise NotImplementedError(msg)
+
+    def backward(self, loss, scaler):
+        '''
+        Backward propagation and update parameters.
         '''
         msg = 'backward should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
     def train(self, epoch):
         '''
         Train phase.
         '''
-        msg = 'train should be implemented by subclass.'
-        raise NotImplementedError(msg)
+        utils.initialize_meters(self.meters)
+        self.scaler = GradScaler()
 
-    @classmethod
+        for key in self.models.keys():
+            self.models[key].train()
+
+        with tqdm(total=len(self.datasets['train']), ascii=True) as t:
+            t.set_description(f'train {epoch}/{self.cfg.EPOCHES}')
+
+            for input_data in self.data_loaders['train']:
+                with autocast():
+                    input_data = utils.to_device(input_data, self.cfg.DEVICE)
+                    input_data['phase'] = 'train'
+                    output_data = self.forward(input_data)
+                    loss = self.compute_loss(input_data, output_data)
+
+                utils.initialize_optimizers(self.optimizers)
+                self.backward(loss)
+                num_batch = self.update_meters(input_data, output_data, loss)
+                t.set_postfix_str(self.meters['train'])
+                t.update(num_batch)
+
+    @torch.no_grad()
     def val(self, epoch):
         '''
         Validate phase.
@@ -91,16 +131,14 @@ class TrainStep(ABC):
         msg = 'val should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    @classmethod
     def save_models(self, save_dir):
         '''
         Save model(s).
         '''
-        msg = 'save_models should be implemented by subclass.'
-        raise NotImplementedError(msg)
+        for value in self.models.values():
+            utils.save_model(value, save_dir)
 
-    @classmethod
-    def update_meters(input_data, output_data):
+    def update_meters(self, input_data, output_data, loss):
         '''
         Update meter(s).
         '''

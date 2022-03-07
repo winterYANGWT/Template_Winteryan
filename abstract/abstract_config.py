@@ -8,6 +8,7 @@ __all__ = ['AbstractConfig']
 class AbstractConfig(ABC):
     def __init__(self) -> None:
         super().__init__()
+        self.SEED = 0
         self.PREFETCH_FACTOR = 2
         self.NUM_WORKERS = 1
         self.PIN_MEMORY = True
