@@ -30,7 +30,8 @@ def cosine_schedule(timesteps: int) -> torch.Tensor:
     s = 0.008
     total_steps = timesteps + 1
     steps = torch.linspace(0, total_steps, total_steps)
-    f_steps = torch.cos(0.5 * torch.pi * (steps / total_steps + s) / (1 + s))
+    f_steps = torch.cos(0.5 * torch.pi * (steps / total_steps + s) /
+                        (1 + s))**2
     a_steps = f_steps / f_steps[0]
     betas = 1 - (a_steps[1:] / a_steps[:-1])
     betas = torch.clip(betas, min=0, max=0.999)
