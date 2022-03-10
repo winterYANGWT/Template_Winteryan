@@ -1,4 +1,6 @@
-from abc import ABC, abstractclassmethod
+from abc import ABC
+
+__all__ = ['AbstractMeter']
 
 
 class AbstractMeter(ABC):

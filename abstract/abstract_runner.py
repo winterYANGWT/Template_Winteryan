@@ -1,14 +1,23 @@
 from abc import ABC
-import utils
-from tqdm import tqdm
 import torch
 from torch.cuda.amp import autocast, GradScaler
-import os.path as path
+import utils
+import meter
+
+__all__ = ['TrainRunner', 'InferRunner', 'TestRunner']
 
 
-class TrainStep(ABC):
+class TrainRunner(ABC):
     def __init__(self) -> None:
         super().__init__()
+        self.scaler = GradScaler()
+        self.datasets = {}
+        self.data_iterators = {}
+        self.models = {}
+        self.criterions = {}
+        self.optimizers = {}
+        self.meters = {'train': meter.MeterDict(), 'val': meter.MeterDict()}
+
         self.load_config()
         self.load_datasets()
         self.load_models()
@@ -90,41 +99,48 @@ class TrainStep(ABC):
         msg = 'compute_loss should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    def backward(self, loss, scaler):
+    def backward(self, loss, is_optimize):
         '''
         Backward propagation and update parameters.
         '''
         msg = 'backward should be implemented by subclass.'
         raise NotImplementedError(msg)
 
-    def train(self, epoch):
+    def train(self, step, initial_flag):
         '''
         Train phase.
         '''
-        utils.initialize_meters(self.meters)
-        self.scaler = GradScaler()
+        if initial_flag == True:
+            utils.initialize_meters(self.meters)
+            utils.initialize_optimizers(self.optimizers)
 
-        for key in self.models.keys():
-            self.models[key].train()
+            for key in self.models.keys():
+                self.models[key].train()
 
-        with tqdm(total=len(self.datasets['train']), ascii=True) as t:
-            t.set_description(f'train {epoch}/{self.cfg.EPOCHES}')
+        try:
+            input_data = next(self.data_iterators['train'])
+        except (StopIteration, KeyError):
+            self.data_iterators['train'] = iter(self.data_loaders['train'])
+            input_data = next(self.data_iterators['train'])
 
-            for input_data in self.data_loaders['train']:
-                with autocast():
-                    input_data = utils.to_device(input_data, self.cfg.DEVICE)
-                    input_data['phase'] = 'train'
-                    output_data = self.forward(input_data)
-                    loss = self.compute_loss(input_data, output_data)
+        input_data['phase'] = 'train'
+        input_data = utils.to_device(input_data, self.cfg.DEVICE)
 
-                utils.initialize_optimizers(self.optimizers)
-                self.backward(loss)
-                num_batch = self.update_meters(input_data, output_data, loss)
-                t.set_postfix_str(self.meters['train'])
-                t.update(num_batch)
+        with autocast():
+            output_data = self.forward(input_data)
+            loss = self.compute_loss(input_data, output_data)
+
+        is_optimize = step % self.cfg.GRAD_ACCUMULATE_EVERY == 0
+        self.backward(loss, is_optimize)
+
+        if is_optimize == True:
+            self.scaler.update()
+            utils.initialize_optimizers(self.optimizers)
+
+        self.update_meters(input_data, output_data, loss)
 
     @torch.no_grad()
-    def val(self, epoch):
+    def val(self, step):
         '''
         Validate phase.
         '''
@@ -146,7 +162,7 @@ class TrainStep(ABC):
         raise NotImplementedError(msg)
 
 
-class InferStep(ABC):
+class InferRunner(ABC):
     def __init__(self) -> None:
         super().__init__()
         self.load_config()
@@ -210,6 +226,6 @@ class InferStep(ABC):
         raise NotImplementedError(msg)
 
 
-class TestStep(ABC):
+class TestRunner(ABC):
     def __init__(self) -> None:
         super().__init__()
