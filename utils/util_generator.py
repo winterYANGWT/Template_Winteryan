@@ -8,7 +8,7 @@ from typing import Dict
 
 __all__ = [
     'generate_dataset', 'generate_data_loader', 'generate_data_loaders',
-    'generate_models', 'generate_optimizer'
+    'generate_models'
 ]
 
 
@@ -72,66 +72,32 @@ def generate_dataset(dataset,
 
 
 def generate_models(models: Dict[str, nn.Module],
-                    is_load: bool = False,
                     device: torch.device = torch.device('cpu'),
-                    data_parallel: bool = False,
-                    *,
-                    model_dir: str = '') -> Dict[str, torch.nn.Module]:
+                    data_parallel: bool = False) -> Dict[str, torch.nn.Module]:
     '''
     Preprocess models in dict.
 
     Args:
         models: A dict of PyTorch models.
-        is_load: If True, will load pretrained parameters to models.
         device: The device in which the model is in. It could be cuda device or cpu device.
         data_parallel: If True, the model will be loaded into multi-gpus and process data in parallel.
-        model_dir: The dir which the model's parameters are stored in.
 
     Returns:
         A dict contrains preprocessed models.
     '''
-    def generate_model(model, parameters_path, device, data_parallel):
-        if parameters_path != '':
-            model = load_model(model, parameters_path)
-
-        if data_parallel == True and device != torch.device('cpu'):
+    def generate_model(model, device, data_parallel):
+        if data_parallel == True and device != torch.device(
+                'cpu') and not isinstance(model, nn.DataParallel):
             model = nn.DataParallel(module=model)
+            model.name = model.module.name
 
         model = to_device(model, device)
         return model
 
-    if is_load == True:
-        assert model_dir != '', 'model_dir shouldn\'t be \'\' if is_load is True.'
-
     for key in models.keys():
-        if is_load == True:
-            parameters_path = path.join(model_dir, models[key].name)
-        else:
-            parameters_path = ''
-
-        models[key] = generate_model(models[key], parameters_path, device,
-                                     data_parallel)
+        models[key] = generate_model(models[key], device, data_parallel)
 
     return models
-
-
-def generate_optimizer(model, optimizer, learning_rate):
-    '''
-    Create optimizers for models.
-
-    Type `M`: torch.nn.Module
-    Type `O`: torch.optim.Optimizer
-
-    Args:
-        model(torch.nn.Module): A model need to update parameters druing training.
-        optimizer(torch.optim.Optimizer): A optimizer class to use its instance to update model's parameters.
-        learning_rate(float): The step size each time the model's parameters are updated.
-
-    Returns:
-        (Union[O, Dict[str, O], Sequence[O]]): A container contains optimizers or a optimizer.
-    '''
-    model_optimizer = optimizer(model.parameters(), lr=learning_rate)
-    return model_optimizer
 
 
 def generate_data_loaders(datasets):
@@ -178,6 +144,11 @@ def generate_data_loader(dataset):
     Returns:
         (DL): A data loader and its keys are the same as dataset.
     '''
+    def generator(data_loader):
+        while True:
+            for data in data_loader:
+                yield data
+
     data_loader = data.DataLoader(dataset=dataset,
                                   batch_size=dataset.batch_size,
                                   shuffle=dataset.shuffle,
@@ -185,4 +156,5 @@ def generate_data_loader(dataset):
                                   prefetch_factor=dataset.prefetch_factor,
                                   collate_fn=dataset.collate_fn,
                                   pin_memory=dataset.pin_memory)
+    data_loader = generator(data_loader)
     return data_loader

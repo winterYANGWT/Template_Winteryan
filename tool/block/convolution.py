@@ -13,14 +13,10 @@ class ChannelChanger(nn.Module):
         self.channel_changer = nn.Conv2d(in_channels,
                                          out_channels,
                                          kernel_size=1)
-        self.initialize()
 
     def forward(self, input_tensor):
         output_tensor = self.channel_changer(input_tensor)
         return output_tensor
-
-    def initialize(self):
-        nn.init.kaiming_normal_(self.channel_changer.weight)
 
 
 class Conv(nn.Module):
@@ -56,14 +52,10 @@ class Conv(nn.Module):
                               groups=groups,
                               bias=bias,
                               padding_mode=padding_mode)
-        self.initialize()
 
     def forward(self, input_tensor):
         output_tensor = self.conv(input_tensor)
         return output_tensor
-
-    def initialize(self):
-        nn.init.kaiming_normal_(self.conv.weight)
 
 
 class Conv1x1(Conv):
@@ -205,13 +197,8 @@ class DilatedConv2d(nn.Module):
                  dilated_ratio_per_conv) in zip(out_channels, dilated_ratios)
         ]
         self.convs = nn.ModuleList(self.convs)
-        self.initialize()
 
     def forward(self, input_tensor):
         output_tensor = [conv(input_tensor) for conv in self.convs]
         output_tensor = torch.cat(output_tensor, dim=1)
         return output_tensor
-
-    def initialize(self):
-        for conv in self.convs:
-            nn.init.kaiming_normal_(conv.weight)

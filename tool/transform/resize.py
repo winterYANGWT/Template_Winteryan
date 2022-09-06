@@ -5,17 +5,65 @@ import torch
 import math
 import utils
 
-__all__ = ['MinimumResize', 'MaximumResize', 'FixedResize']
+__all__ = [
+    'FixedShortestEdgeResize', 'MinimumResize', 'MaximumResize', 'FixedResize'
+]
+
+
+class FixedShortestEdgeResize(object):
+    def __init__(
+            self,
+            shortest_edge_size,
+            interpolation=tv.transforms.InterpolationMode.BILINEAR) -> None:
+        super().__init__()
+
+        if not isinstance(shortest_edge_size, int):
+            msg = f'shortest_edge_size should be int, but got {shortest_edge_size}.'
+            raise ValueError(msg)
+        else:
+            self.shortest_edge_size = shortest_edge_size
+
+        self.interpolation = interpolation
+
+    def __call__(self, image):
+        if isinstance(image, Image.Image):
+            w = image.width
+            h = image.height
+        elif isinstance(image, torch.Tensor):
+            c, h, w = image.size()
+        else:
+            msg = 'image shoude be PIL.Image or torch.Tensor, but got {}.'.format(
+                type(image))
+            raise ValueError(msg)
+
+        if h == w == self.shortest_edge_size:
+            return image
+
+        h_scale = h / self.shortest_edge_size
+        w_scale = w / self.shortest_edge_size
+
+        if h_scale > w_scale:
+            new_w = self.shortest_edge_size
+            new_h = math.floor(h / w_scale)
+        else:
+            new_h = self.shortest_edge_size
+            new_w = math.floor(w / h_scale)
+
+        resized_image = F.resize(image,
+                                 size=(new_h, new_w),
+                                 interpolation=self.interpolation)
+        return resized_image
 
 
 class MinimumResize(object):
+    '''
+    Resize image and keep the aspect ratio. Make sure that the shortest edge of image is above the minimum_size.
+    '''
     def __init__(
             self,
             minimum_size,
             interpolation=tv.transforms.InterpolationMode.BILINEAR) -> None:
         '''
-        Resize image and keep the aspect ratio. Make sure that the shortest edge of image is above the minimum_size.
-
         Args:
             minimum_size(Tuple[int]): The minimum size of resized image and its height and width should be above the minimum size.
             interpolation(torchvision.transforms.InterpolationMode): Desired interpolation method defined in PIL.Image.
@@ -70,13 +118,14 @@ class MinimumResize(object):
 
 
 class MaximumResize(object):
+    '''
+    Resize image and keep the aspect ratio. Make sure that the longest edge of image is below the maximum_size.
+    '''
     def __init__(
             self,
             maximum_size,
             interpolation=tv.transforms.InterpolationMode.BILINEAR) -> None:
         '''
-        Resize image and keep the aspect ratio. Make sure that the longest edge of image is below the maximum_size.
-
         Args:
             maximum_size(Tuple[int]): The maximum size of resized image and its height and width should be below the maximum size.
             interpolation(torchvision.transforms.InterpolationMode): Desired interpolation method defined in PIL.Image.

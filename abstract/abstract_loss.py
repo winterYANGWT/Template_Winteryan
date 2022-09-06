@@ -1,6 +1,8 @@
 import torch.nn as nn
 from abc import abstractclassmethod
 
+__all__ = ['AbstractLoss']
+
 
 class AbstractLoss(nn.Module):
     def __init__(self):

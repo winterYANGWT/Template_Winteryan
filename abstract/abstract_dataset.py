@@ -1,6 +1,8 @@
 import torch.utils.data as data
 import torch
 
+__all__ = ['AbstractDataset']
+
 
 class AbstractDataset(data.Dataset):
     '''

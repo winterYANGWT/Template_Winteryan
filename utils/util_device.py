@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-__all__ = ['get_device', 'to_device']
+__all__ = ['get_device', 'to_device', 'device_like']
 
 
 def get_device(data):
@@ -19,12 +19,11 @@ def get_device(data):
         return data.device
     elif isinstance(data, nn.Module):
         if isinstance(data, nn.DataParallel):
-            para_dict = data.module.state_dict()
+            params = data.module.parameters()
         else:
-            para_dict = data.state_dict()
+            params = data.parameters()
 
-        keys = [para_dict.keys()]
-        return para_dict[keys[0]].device
+        return params[0].device
     else:
         msg = 'data should be torch.Tensor or torch.nn.Module, but got {}'.format(
             type(data))
@@ -67,3 +66,9 @@ def to_device(data, device):
         return data.to(device)
     else:
         return data
+
+
+def device_like(raw_data, target_data):
+    device = get_device(target_data)
+    new_data = to_device(raw_data, device)
+    return new_data

@@ -1,18 +1,22 @@
-from abc import ABC, abstractclassmethod
+from abc import ABC, abstractmethod
+
+__all__ = ['AbstractMeter']
 
 
 class AbstractMeter(ABC):
     def __init__(self) -> None:
         super().__init__()
+        self.sum = {}
+        self.num_samples = -1
         self.reset()
 
+    @abstractmethod
     def reset(self):
-        msg = 'reset should be implemented by subclass.'
-        raise NotImplementedError(msg)
+        pass
 
-    def update(self):
-        msg = 'update should be implemented by subclass.'
-        raise NotImplementedError(msg)
+    @abstractmethod
+    def update(self, input_data, output_data, loss):
+        pass
 
     def compute_value(self):
         value = {}
